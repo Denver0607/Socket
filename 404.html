@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+    <style>
+        body{
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    height:90vh;
+    background: #111;
+    font-family: "consolas",sans-serif;
+}
+
+.ghost{
+    position: absolute;
+    height: 200px;
+    width:160px;
+    margin-left: 500px;
+    margin-top: 50px;
+}
+.body{
+    position: relative;
+    height: 200px;
+    width: 160px;
+    margin-top: 25px;
+    border-top-right-radius: 80px;
+    border-top-left-radius: 80px;
+    background-color: #f0efda;
+    animation: float 4s ease infinite;
+    opacity: 0.2;
+    transition-property: opacity;
+    transition-duration: 1s;
+}
+
+.blur{
+    position: absolute;
+    height : 250px;
+    width: 210px;
+    top: -25px;
+    left: -25px;
+    right: -25px;
+    border-top-right-radius: 80px;
+    border-top-left-radius: 80px;
+    background-color: #f0efda;
+    filter: blur(100px);
+    z-index: -1;
+     animation: float 4s ease infinite;
+}
+
+@keyframes float{
+    0%,100%{
+        top: 0;
+        opacity: 0;
+    }
+    40%{
+        top: -40%;
+        opacity: 1;
+    }
+}
+
+.face{
+    display: flex;
+    flex-wrap: wrap;
+    position: absolute;
+    top: 67px;
+    left: 37px;
+    height: 41px;
+    width: 72px;
+}
+
+.eye{
+    height: 20px;
+    width: 20px;
+    border-radius: 100%;
+    background-color: #272b24;
+}
+
+.eye-left{
+    margin-right: 32px;
+}
+
+.eye-white{
+    height: 6px;
+    width: 6px;
+    margin-left: 4px;
+    margin-top: 2px;
+    border-radius: 100%;
+    background-color: white;
+}
+
+.smile{
+    height:16px;
+    width: 32px;
+    margin-top: 6px;
+    margin-left: 20px;
+    rotate: 180deg;
+    background-color:crimson;
+    border-bottom-left-radius: 16px 12px;
+    border-bottom-right-radius: 16px 12px;
+    border-top-left-radius: 4px;
+    border-top-right-radius: 4px;
+}
+
+.rosy{
+    position: absolute;
+    top: 28px;
+    width: 22px;
+    height: 8px;
+    border-radius: 100%;
+    filter: blur(4px);
+    background-color:lightpink;
+}
+
+.rosy-left{
+    left: -13px;
+}
+
+.rosy-right{
+    right:-13px;
+}
+
+
+.arm{
+    position:absolute;
+    top: 136px;
+    height: 40px;
+    width: 60px;
+    background-color: #f0efda;
+}
+
+.arm-left{
+    left:-4px;
+    border-radius: 60% 100%;
+    animation: arm-left 4s ease infinite;
+    
+}
+@keyframes arm-left{
+    0%,100%{
+        transform: translate(-50%,-50%) rotate(-70deg);
+    }
+    40%{
+        transform: translate(-50%,-50%) rotate(-40deg);
+    }
+}
+
+.arm-right{
+    right: -64px;
+    border-radius: 100% 60%;
+    animation: arm-right 4s ease infinite;
+}
+
+@keyframes arm-right{
+    0%,100%{
+        transform: translate(-50%,-50%) rotate(70deg);
+    }
+    40%{
+        transform: translate(-50%,-50%) rotate(40deg);
+    }
+}
+
+
+.bottom{
+    display: flex;
+    position:absolute;
+    top: 100%;
+    left:0;
+    right:-1px;
+}
+.bottom div{
+    flex-grow: 1;
+    position: relative;
+    top:-14px;
+    height: 28px;
+    border-radius: 100%;
+    background-color: #f0efda;
+}
+
+.bottom div:nth-child(2n){
+    top: -10px;
+    margin: 0 -2px;
+    border-top: 10px solid #f0efda;
+    background: transparent;
+}
+
+.shadow{
+    position: absolute;
+    bottom: -100px;
+    left: -10%;
+    width: 200px;
+    height: 12px;
+    border-radius: 100%;
+    background-color: #0e0d0d;
+    animation: shadow 4s ease infinite;
+}
+
+@keyframes shadow{
+    0%, 100%{
+        transform: translateX(0) scale(1);
+    }
+    40%{
+        transform: translateX(0) scale(0.5);
+    }
+
+}
+
+.content{
+    width: 100%;
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    text-align: center;
+    margin-left: -500px;
+}
+
+.content h1{
+    font-size: 275px;
+    margin:0;
+    font-weight: 1500;
+    letter-spacing: 30px;
+    color: #c6a82f;
+    text-shadow: 0 0 12px;
+}
+
+
+
+
+.content h2{
+    font-size: 45px;
+    margin:0;
+    font-weight: 900;
+    color: #f8edc0;
+}
+
+.content h4{
+    font-size: 25px;
+    margin:0;
+    font-weight: 900;
+    color: #b6edfada;
+}
+
+.container{
+    position: relative;
+    width: 100%;
+    height: 100vh;
+    overflow: hidden;
+}
+
+.bubbles{
+    position: relative;
+    display: flex;
+    filter:blur(10px);
+    z-index: -2;
+
+}
+.bubbles span{
+    opacity: 0.3;
+    position: relative;
+    width: 30px;
+    height: 30px;
+    background: #dcb44f;
+    margin: 0 4px;
+    border-radius: 50%;
+    box-shadow: 0 0 0 10px #b48611, 0 0 50px #dcb44f,0 0 100px #dcb44f;
+    animation: animate 15s linear infinite;
+    animation-duration:calc(120s/var(--i)) ;
+}
+
+.bubbles span:nth-child(even){
+    opacity: 0.5;
+    background: #f1e8c7;
+    box-shadow: 0 0 0 10px #ebdca6, 0 0 50px #f1e8c7,0 0 100px #f1e8c7;
+}
+
+@keyframes animate{
+    0%{
+        transform: translateY(100vh) scale(0);
+    }
+
+    100%{
+        transform: translateY(-10vh) scale(1);
+    }
+}
+    </style>
+    <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE-edge">
+        <meta name="viewport" content="width=device-wigth, initial-scale=1">
+        <title>Ghost</title>
+    </head>
+
+    <body>
+        <div class="ghost">
+            <div class="body">
+                <div class="face">
+                    <div class="eye eye-left">
+                        <div class="eye-white"></div>
+                    </div>
+                    <div class="eye eye-right">
+                        <div class="eye-white"></div>
+                    </div>
+                    <div class="smile"></div>
+                    <div class="rosy rosy-left"></div>
+                    <div class="rosy rosy-right"></div>
+                </div>
+
+                <div class="arm arm-left"></div>
+                <div class="arm arm-right"></div>
+                <div class="bottom">
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                </div>
+            </div>
+            <div class="shadow"></div>
+            <div class="blur"></div>
+        </div>
+        <div class="content">
+            <h2> Page not found</h2>
+            <h1>404</h1>
+            <h4>Sorry, we can't find the page you're looking for </h4>
+        </div>
+
+        <div class="container">
+            <div class="bubbles">
+                <span style="--i:11;"></span>
+                <span style="--i:12;"></span>
+                <span style="--i:24;"></span>
+                <span style="--i:10;"></span>
+                <span style="--i:14;"></span>
+                <span style="--i:23;"></span>
+                <span style="--i:18;"></span>
+                <span style="--i:16;"></span>
+                <span style="--i:19;"></span>
+                <span style="--i:20;"></span>
+                <span style="--i:22;"></span>
+                <span style="--i:25;"></span>
+                <span style="--i:18;"></span>
+                <span style="--i:21;"></span>
+                <span style="--i:15;"></span>
+                <span style="--i:13;"></span>
+                <span style="--i:26;"></span>
+                <span style="--i:17;"></span>
+                <span style="--i:13;"></span>
+                <span style="--i:28;"></span>
+                <span style="--i:11;"></span>
+                <span style="--i:12;"></span>
+                <span style="--i:24;"></span>
+                <span style="--i:10;"></span>
+                <span style="--i:14;"></span>
+                <span style="--i:23;"></span>
+                <span style="--i:18;"></span>
+                <span style="--i:16;"></span>
+                <span style="--i:19;"></span>
+                <span style="--i:20;"></span>
+                <span style="--i:22;"></span>
+                <span style="--i:25;"></span>
+                <span style="--i:18;"></span>
+                <span style="--i:21;"></span>
+                <span style="--i:15;"></span>
+                <span style="--i:13;"></span>
+                <span style="--i:26;"></span>
+                <span style="--i:17;"></span>
+                <span style="--i:13;"></span>
+                <span style="--i:28;"></span>
+                <span style="--i:11;"></span>
+                <span style="--i:12;"></span>
+                <span style="--i:24;"></span>
+                <span style="--i:10;"></span>
+                <span style="--i:14;"></span>
+                <span style="--i:23;"></span>
+                <span style="--i:18;"></span>
+                <span style="--i:16;"></span>
+                <span style="--i:19;"></span>
+                <span style="--i:20;"></span>
+                <span style="--i:22;"></span>
+                <span style="--i:25;"></span>
+                <span style="--i:18;"></span>
+                <span style="--i:21;"></span>
+                <span style="--i:15;"></span>
+                <span style="--i:13;"></span>
+                <span style="--i:26;"></span>
+                <span style="--i:17;"></span>
+                <span style="--i:13;"></span>
+                <span style="--i:28;"></span>
+            </div>
+        </div>
+
+    </body>
+</html>
