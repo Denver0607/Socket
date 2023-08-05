@@ -1,3 +1,6 @@
+# Denver have changed this file to default
+# If you want to test our proxy server, please use test.py
+# After we finished our proxy server, we will copy source code from test.py to this file
 from socket import *
 
 import sys

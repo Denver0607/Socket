@@ -1,3 +1,5 @@
+# Please use this file to test our proxy server.
+# This file doesn't use OOP style. It suitable for us to understand the logic of proxy server.
 import socket
 import threading
 import os
