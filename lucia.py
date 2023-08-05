@@ -14,18 +14,10 @@ NOT_FOUND_PAGE = "404.html"
 def receive_data(client_socket):
     # print("receive_data: ")
     # print(client_socket.getsockname)
-    # data = b""
-    # while True:
-    #     chunk = client_socket.recv(4096)
-    #     print(chunk.decode("utf8"))
-    #     if not chunk:
-    #         break
-    #     data += chunk
     # print(0)
     data = client_socket.recv(4096)
     # print(data.decode("utf8"))
     # print(1)
-    # data = chunk
     return data
 
 def parse_request(request):
@@ -37,11 +29,12 @@ def parse_request(request):
         return None, None
 
     # Extract HTTP method and URL from the first line of the request
-    print("lines[0]: ")
-    print(lines[0].decode("utf8"))
-    # method, url, _ = lines[0].split(b' ')
-    return None, None
-    return method.decode("utf8"), url.decode("utf8")
+    # print("lines[0]: ")
+    str_lines = lines[0].decode("utf8").split(' ')
+    # print(str_lines)
+    method = str_lines[0]
+    url =  str_lines[1]
+    return method, url
 
 def get_content_length(request):
     content_length_header = b"Content-Length: "
@@ -117,8 +110,6 @@ def handle_request(client_socket):
     # print(request.decode("utf8"))
     # print(3)
     method, url = parse_request(request)
-    # method = None
-    # url = None
     print(method)
     print(url)
     content_length = get_content_length(request)
