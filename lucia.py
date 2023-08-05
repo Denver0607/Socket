@@ -12,23 +12,36 @@ FORBIDDEN_PAGE = "403.html"
 NOT_FOUND_PAGE = "404.html"
 
 def receive_data(client_socket):
-    data = b""
+    # print("receive_data: ")
+    # print(client_socket.getsockname)
+    # data = b""
     # while True:
     #     chunk = client_socket.recv(4096)
+    #     print(chunk.decode("utf8"))
     #     if not chunk:
     #         break
     #     data += chunk
+    # print(0)
     data = client_socket.recv(4096)
+    # print(data.decode("utf8"))
+    # print(1)
+    # data = chunk
     return data
 
 def parse_request(request):
+    # print("parse_request: ")
+    # print(request.decode("utf8"))
+    # print(5)
     lines = request.split(b"\r\n")
     if not lines:
         return None, None
 
     # Extract HTTP method and URL from the first line of the request
-    method, url, _ = lines[0].split(b" ")
-    return method.decode(), url.decode()
+    print("lines[0]: ")
+    print(lines[0].decode("utf8"))
+    # method, url, _ = lines[0].split(b' ')
+    return None, None
+    return method.decode("utf8"), url.decode("utf8")
 
 def get_content_length(request):
     content_length_header = b"Content-Length: "
@@ -77,7 +90,7 @@ def send_not_found_response(client_socket):
 def is_whitelisted(url):
     # Implement whitelisting logic from the config file
     # Return True if URL is whitelisted, otherwise False
-    return True
+    return False
 
 def is_time_allowed():
     # Implement time-based access restrictions from the config file
@@ -97,8 +110,17 @@ def handle_head_request(client_socket, url):
     pass
 
 def handle_request(client_socket):
+    # print(client_socket.getsockname)
+    # print(2)
     request = receive_data(client_socket)
+    # print("request: ")
+    # print(request.decode("utf8"))
+    # print(3)
     method, url = parse_request(request)
+    # method = None
+    # url = None
+    print(method)
+    print(url)
     content_length = get_content_length(request)
 
     if method and url and is_whitelisted(url) and is_time_allowed():
@@ -129,7 +151,7 @@ def main():
     settings = read_config()
 
     proxy_host = "127.0.0.1"
-    proxy_port = 8888
+    proxy_port = 10000
 
     proxy_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     proxy_server.bind((proxy_host, proxy_port))
@@ -141,7 +163,14 @@ def main():
         while True:
             client_socket, client_address = proxy_server.accept()
             print(f"Accepted connection from {client_address[0]}:{client_address[1]}")
+            # chunk = client_socket.recv(4096)
+            # chunk = receive_data(client_socket)
+            # print("main request: ")
+            # print(chunk.decode("utf8"))
+            # print(client_socket.getsockname)
             handle_request(client_socket)
+            print(4)
+            # proxy_server.close()
             # threading.Thread(target=handle_request, args=(client_socket,)).start()
     except KeyboardInterrupt:
         print("Proxy server stopped.")
