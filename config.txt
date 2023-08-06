@@ -1,4 +1,0 @@
-[CACHE]
-cache_time=900
-whitelisting=oosc.online, example.com
-time=8-20

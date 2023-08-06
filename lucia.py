@@ -16,13 +16,13 @@ def receive_data(client_socket):
     # print(client_socket.getsockname)
     # print(0)
     data = client_socket.recv(4096)
-    # print(data.decode("utf8"))
+    # print(data.decode())
     # print(1)
     return data
 
 def parse_request(request):
     # print("parse_request: ")
-    # print(request.decode("utf8"))
+    # print(request.decode())
     # print(5)
     lines = request.split(b"\r\n")
     if not lines:
@@ -30,10 +30,13 @@ def parse_request(request):
 
     # Extract HTTP method and URL from the first line of the request
     # print("lines[0]: ")
-    str_lines = lines[0].decode("utf8").split(' ')
+    str_line = lines[0].decode().split(' ')
     # print(str_lines)
-    method = str_lines[0]
-    url =  str_lines[1]
+    method = str_line[0]
+    url =  str_line[1]
+    str_line.clear()
+    # method = None
+    # url = None
     return method, url
 
 def get_content_length(request):
@@ -83,16 +86,40 @@ def send_not_found_response(client_socket):
 def is_whitelisted(url):
     # Implement whitelisting logic from the config file
     # Return True if URL is whitelisted, otherwise False
-    return False
+    return True
 
 def is_time_allowed():
     # Implement time-based access restrictions from the config file
     # Return True if access is allowed, otherwise False
     return True
 
-def handle_get_request(client_socket, url):
+def handle_get_request(client_socket, host_name, request):
     # ... (same implementation as before)
-    pass
+    connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    port = 80
+    
+    try:
+        print(host_name)
+        # host = socket.gethostbyname('www.example.com')
+        host = socket.gethostbyname(host_name)
+    except socket.gaierror:
+        # this means could not resolve the host
+        print ("there was an error resolving the host")
+        return
+ 
+    # connecting to the server
+    connection.connect((host, port))
+    print ("the socket has successfully connected to url")
+    
+    #send request and get response
+    connection.sendall(request)
+    response = b""
+    response += connection.recv(4096)
+    # print(response.decode())
+    connection.close()
+    
+    #send response to the client
+    return response
 
 def handle_post_request(client_socket, url, request, content_length):
     # ... (same implementation as before)
@@ -107,16 +134,22 @@ def handle_request(client_socket):
     # print(2)
     request = receive_data(client_socket)
     # print("request: ")
-    # print(request.decode("utf8"))
+    # print(request.decode())
     # print(3)
     method, url = parse_request(request)
-    print(method)
-    print(url)
+    # print(method)
+    # print(url)
+    # print(is_whitelisted(url))
+    # print(is_time_allowed())
     content_length = get_content_length(request)
 
     if method and url and is_whitelisted(url) and is_time_allowed():
+        print("all parameters are not None")
         if method == "GET":
-            handle_get_request(client_socket, url)
+            host_name = 'google.com'
+            response = handle_get_request(client_socket, host_name, request)
+            if response:
+                send_response(client_socket, response)
         elif method == "POST":
             handle_post_request(client_socket, url, request, content_length)
         elif method == "HEAD":
@@ -133,6 +166,19 @@ def handle_request(client_socket):
 def read_config():
     # Read and parse the configuration file
     # Implement configuration file parsing logic and return settings
+    settings = {}
+    # config_file = open(CONFIG_FILE)
+    #read CACHE_TIME
+    # line = config_file.readline()
+    # buff = line.split('=')[1]
+    # settings.append(buff.split(' ')[0])
+    # print(settings[0])
+    
+    
+    settings = []
+    # str_time = config_file['CACHE_TIME']
+    # print(config_file[0])
+    # config_file.close()
     pass
 
 def main():
@@ -157,7 +203,7 @@ def main():
             # chunk = client_socket.recv(4096)
             # chunk = receive_data(client_socket)
             # print("main request: ")
-            # print(chunk.decode("utf8"))
+            # print(chunk.decode())
             # print(client_socket.getsockname)
             handle_request(client_socket)
             print(4)
