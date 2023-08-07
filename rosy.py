@@ -80,6 +80,47 @@ def get_cached_data(url):
     print(cache_filename)
     return None
 
+def extract_hostname_and_path(url):
+    # Remove the scheme (e.g., 'https://') from the URL
+    url_without_scheme = url.split('://', 1)[-1]
+
+    # Find the first slash to separate the hostname from the path
+    slash_index = url_without_scheme.find('/')
+    if slash_index == -1:
+        # If there is no slash, the entire URL is the hostname
+        return url_without_scheme, '/'
+    else:
+        # Extract the hostname and path components
+        hostname = url_without_scheme[:slash_index]
+        path = url_without_scheme[slash_index:]
+        return hostname, path
+
+def download_image(url, save_path):
+    # Extract the hostname and path from the URL
+    hostname, path = extract_hostname_and_path(url)
+
+    # Open a connection to the server
+    conn = hostname
+    conn.request('GET', path)
+
+    # Get the response from the server
+    response = conn.getresponse()
+
+    # Check if the response is successful (status code 200)
+    if response.status == 200:
+        # Read the image data
+        image_data = response.read()
+
+        # Save the image to the specified file path
+        with io.open(save_path, 'wb') as f:
+            f.write(image_data)
+
+        print(f"Image downloaded and saved to {save_path}")
+    else:
+        print(f"Failed to download image. Status code: {response.status}")
+
+    # Close the connection
+    conn.close()
 
 def receive_request_body(client_socket, content_length):
     return client_socket.recv(content_length)
