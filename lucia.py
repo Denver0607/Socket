@@ -15,7 +15,10 @@ def receive_data(client_socket):
     # print("receive_data: ")
     # print(client_socket.getsockname)
     # print(0)
-    data = client_socket.recv(4096)
+    data = b''
+    while b'\r\n\r\n' not in data:
+        data +=  client_socket.recv(4096)
+    # data = client_socket.recv(4096)
     # print(data.decode())
     # print(1)
     return data
@@ -50,6 +53,53 @@ def get_content_length(request):
 
 def receive_request_body(client_socket, content_length):
     return client_socket.recv(content_length)
+
+def get_file_size(resource):
+    """
+    This method gets the size of the resource.
+    :param resource: resource to get size from
+    :return: the file size as an integer
+    """
+
+    # file_size = 0
+    # if isfile(resource):
+    #     file_size = stat(resource).st_size
+
+    # return file_size
+    pass
+
+def read_file(file):
+    """
+    This method reads the bytes from the resource and returns it.
+    :param file: the resource to read bytes from
+    :return: the read file as a bytes object
+    """
+
+    file_data = b''
+
+    if get_file_size(file):
+        res = open(file, 'r+b')
+
+        for i in range(get_file_size(file)):
+            file_data += res.read()
+
+    return file_data
+
+def get_response_headers(file):
+    # response_headers = []
+
+    # timestamp = datetime.utcnow()
+    # date = timestamp.strftime('%a, %d %b %Y %H:%M:%S GMT')
+    # response_headers.append(b'Date: ' + date.encode('ASCII') + b'\r\n')
+
+    # content_length = get_file_size(file)
+    # response_headers.append(b'Content-Length: ' + str(content_length).encode('ASCII') + b'\r\n')
+
+    # response_headers.append(b'Content-Type: ' + get_mime_type(file) + b'\r\n')
+    # response_headers.append(b'Connection: close\r\n')
+
+    # return response_headers
+    pass
 
 def send_response(client_socket, response):
     try:
@@ -92,6 +142,19 @@ def is_time_allowed():
     # Implement time-based access restrictions from the config file
     # Return True if access is allowed, otherwise False
     return True
+
+def get_content_length(request):
+    content_length_header = b"Content-Length: "
+    index = request.find(content_length_header)
+    if index != -1:
+        end_index = request.find(b"\r\n", index + len(content_length_header))
+        content_length = request[index + len(content_length_header):end_index].strip()
+        return int(content_length)
+    return 0
+
+def receive_request_body(client_socket, content_length):
+    return client_socket.recv(content_length)
+
 
 def handle_get_request(client_socket, host_name, request):
     # ... (same implementation as before)
@@ -142,11 +205,12 @@ def handle_request(client_socket):
     # print(is_whitelisted(url))
     # print(is_time_allowed())
     content_length = get_content_length(request)
+    
+    host_name = 'google.com'
 
-    if method and url and is_whitelisted(url) and is_time_allowed():
+    if method and url and is_whitelisted(host_name) and is_time_allowed():
         print("all parameters are not None")
         if method == "GET":
-            host_name = 'google.com'
             response = handle_get_request(client_socket, host_name, request)
             if response:
                 send_response(client_socket, response)
