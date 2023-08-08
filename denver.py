@@ -25,7 +25,10 @@ def parse_request(request):
     str_lines = lines[0].decode("utf8").split(' ')
 
     method = str_lines[0]
-    url =  str_lines[1]
+    if len(str_lines) > 1:
+        url =  str_lines[1] 
+    else:
+        url = ""
     return method, url
 
 def get_content_length(request):
@@ -213,17 +216,13 @@ def handle_head_request(client_socket, url):
     pass
 
 def handle_request(client_socket):
-    # print(client_socket.getsockname)
-    # print(2)
     request = receive_data(client_socket)
-    # print("request: ")
-    # print(request.decode("utf8"))
-    # print(3)
     method, url = parse_request(request)
+
     print(method)
     print(url)
     content_length = get_content_length(request)
-
+    
     if method and url and is_whitelisted(url) and is_time_allowed():
         if method == "GET":
             handle_get_request(client_socket, url)
@@ -246,13 +245,13 @@ def read_config():
     pass
 
 def main():
-    if not os.path.exists(CACHE_DIRECTORY):
-        os.mkdir(CACHE_DIRECTORY)
+    # if not os.path.exists(CACHE_DIRECTORY):
+    #     os.mkdir(CACHE_DIRECTORY)
 
     settings = read_config()
 
     proxy_host = "127.0.0.1"
-    proxy_port = 10000
+    proxy_port = 8888
 
     proxy_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     proxy_server.bind((proxy_host, proxy_port))
@@ -263,20 +262,21 @@ def main():
     try:
         while True:
             client_socket, client_address = proxy_server.accept()
-            print(f"Accepted connection from {client_address[0]}:{client_address[1]}")
+            # print(f"Accepted connection from {client_address[0]}:{client_address[1]}")
             # chunk = client_socket.recv(4096)
             # chunk = receive_data(client_socket)
             # print("main request: ")
             # print(chunk.decode("utf8"))
             # print(client_socket.getsockname)
             handle_request(client_socket)
+            print(1)
             # proxy_server.close()
             # threading.Thread(target=handle_request, args=(client_socket,)).start()
     except KeyboardInterrupt:
         print("Proxy server stopped.")
-        proxy_server.close()
     finally:
         proxy_server.close()
 
-if __name__ == "__main__":
-    main()
+main()
+    
+
