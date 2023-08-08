@@ -163,27 +163,6 @@ def get_status_line(file_size):
 
     return status_line
 
-# def handle_get_request(client_socket, url):
-#     url = url[1:]
-#     if url == '':
-#         url = 'index.html'
-        
-#     file = join('url',url)
-    
-#     file_size = get_file_size(file)
-#     http_response = get_status_line(file_size)
-    
-#     response_headers= get_response_headers(file)
-#     print(response_headers)
-    
-#     for response_header in response_headers:
-#         http_response +=  response_header
-        
-#     http_response+= b'\r\n'
-#     http_response += read_file(file)
-    
-#     client_socket.sendall(http_response)
-
 def handle_get_request(client_socket, url):
     url = url[1:]
     if url == '':
@@ -215,8 +194,31 @@ def handle_head_request(client_socket, url):
     # ... (same implementation as before)
     pass
 
+def get_user_agent(request):
+    lines = request.split(b"\r\n")
+    for line in lines:
+        if line.startswith(b"User-Agent: "):
+            user_agent = line.split(b"User-Agent: ")[1].decode("utf-8")
+            return user_agent
+    return ""
+
+def is_web_browser(user_agent):
+    web_browsers = ["Mozilla", "Chrome", "Safari", "Opera", "Edge", "IE", "Firefox"]
+    for browser in web_browsers:
+        if browser in user_agent:
+            return True
+    return False
+
 def handle_request(client_socket):
     request = receive_data(client_socket)
+    
+    # Get the User-Agent header from the request
+    user_agent = get_user_agent(request)
+    
+    # Check if the request is from a web browser
+    if is_web_browser(user_agent):
+        return
+    
     method, url = parse_request(request)
 
     print(method)
@@ -269,7 +271,6 @@ def main():
             # print(chunk.decode("utf8"))
             # print(client_socket.getsockname)
             handle_request(client_socket)
-            print(1)
             # proxy_server.close()
             # threading.Thread(target=handle_request, args=(client_socket,)).start()
     except KeyboardInterrupt:
