@@ -4,7 +4,9 @@ import socket
 import threading
 import os
 import datetime
-from urllib.parse import urlparse
+# from urllib.parse import urlparse
+import configparser
+import time
 
 CACHE_DIRECTORY = "cache"
 CONFIG_FILE = "config.ini"
@@ -199,15 +201,31 @@ def send_not_found_response(client_socket):
 
     send_response(client_socket, response)
 
-def is_whitelisted(url):
+def is_whitelisted(whitelisting, host_name):
     # Implement whitelisting logic from the config file
     # Return True if URL is whitelisted, otherwise False
-    return True
+    for allowed_web in whitelisting:
+        if host_name == allowed_web:
+            return True
+    return False
 
-def is_time_allowed():
+def is_time_allowed(allowed_time):
     # Implement time-based access restrictions from the config file
     # Return True if access is allowed, otherwise False
-    return True
+    
+    tm = time.localtime()
+    # tm = datetime.datetime.now()
+    # current_time = time.strftime("%H:%M:%S", tm)
+    # print(current_time)
+
+    cur_time = datetime.time(tm.tm_hour, tm.tm_min, tm.tm_sec)
+    # cur_time = datetime.time(7,59,0)
+    start_time = datetime.time(int(allowed_time[0]))
+    end_time = datetime.time(int(allowed_time[1]))
+
+    if start_time <= cur_time and cur_time <= end_time:
+        return True
+    return False
 
 def handle_get_request(client_socket, host_name, request):
     # ... (same implementation as before)
@@ -245,7 +263,7 @@ def handle_head_request(client_socket, url):
     # ... (same implementation as before)
     pass
 
-def handle_request(client_socket):
+def handle_request(settings, client_socket):
     # print(client_socket.getsockname)
     # print(2)
     request = receive_data(client_socket)
@@ -260,7 +278,8 @@ def handle_request(client_socket):
     # print(is_time_allowed())
     host_name, path = extract_hostname_and_path(url)
 
-    if method and url and is_whitelisted(host_name) and is_time_allowed():
+    section = 'CONFIGURATION'
+    if method and url and is_whitelisted(settings[section]['whitelisting'], host_name) and is_time_allowed(settings[section]['time']):
         print("all parameters are not None")
         if method == "GET":
             response = handle_get_request(client_socket, host_name, request)
@@ -288,20 +307,16 @@ def handle_request(client_socket):
 def read_config():
     # Read and parse the configuration file
     # Implement configuration file parsing logic and return settings
-    settings = {}
-    # config_file = open(CONFIG_FILE)
-    #read CACHE_TIME
-    # line = config_file.readline()
-    # buff = line.split('=')[1]
-    # settings.append(buff.split(' ')[0])
-    # print(settings[0])
+    config = configparser.ConfigParser()
+    config.read(CONFIG_FILE)
     
+    config_dict = {}
+    for section in config.sections():
+        config_dict[section] = {}
+        for key, value in config[section].items():
+            config_dict[section][key] = value.split(',')
     
-    settings = []
-    # str_time = config_file['CACHE_TIME']
-    # print(config_file[0])
-    # config_file.close()
-    pass
+    return config_dict
 
 def main():
     if not os.path.exists(CACHE_DIRECTORY):
@@ -327,7 +342,7 @@ def main():
             # print("main request: ")
             # print(chunk.decode())
             # print(client_socket.getsockname)
-            handle_request(client_socket)
+            handle_request(settings, client_socket)
             print(4)
             # proxy_server.close()
             # threading.Thread(target=handle_request, args=(client_socket,)).start()
