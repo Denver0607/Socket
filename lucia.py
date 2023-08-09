@@ -10,17 +10,36 @@ CACHE_DIRECTORY = "cache"
 CONFIG_FILE = "config.ini"
 FORBIDDEN_PAGE = "403.html"
 NOT_FOUND_PAGE = "404.html"
+BUFSIZE = 4096
+PORT = 80
 
 def receive_data(client_socket):
     # print("receive_data: ")
     # print(client_socket.getsockname)
     # print(0)
-    data = b''
-    while b'\r\n\r\n' not in data:
-        data +=  client_socket.recv(4096)
+    data = b""
+    # while True:
+    while b"\r\n\r\n" not in data:
+        data += client_socket.recv(BUFSIZE)
+    
+    content_length = get_content_length(data)
+    if content_length != 0:
+        data_content_length = len(data.split(b'\r\n\r\n')[1])
+        while content_length > data_content_length:
+            chunk = client_socket.recv(BUFSIZE)
+            data_content_length += len(chunk)
+            data += chunk
+            
     # data = client_socket.recv(4096)
     # print(data.decode())
     # print(1)
+    # while True:
+        # chunk = client_socket.recv(8192)
+        # if not chunk:
+        #     break            
+        # data += chunk
+        # if (b'\r\n\r\n') in data:
+        #     break
     return data
 
 def parse_request(request):
@@ -73,7 +92,6 @@ def read_http_request(request):
 
     return request_line, request_header_dictionary
 
-
 def extract_hostname_and_path(url):
     # Remove the scheme (e.g., 'https://') from the URL
     url_without_scheme = url.split('://', 1)[-1]
@@ -98,6 +116,7 @@ def get_content_length(request):
         return int(content_length)
     return 0
 
+# not use yet
 def receive_request_body(client_socket, content_length):
     return client_socket.recv(content_length)
 
@@ -190,34 +209,21 @@ def is_time_allowed():
     # Return True if access is allowed, otherwise False
     return True
 
-def get_content_length(request):
-    content_length_header = b"Content-Length: "
-    index = request.find(content_length_header)
-    if index != -1:
-        end_index = request.find(b"\r\n", index + len(content_length_header))
-        content_length = request[index + len(content_length_header):end_index].strip()
-        return int(content_length)
-    return 0
-
-def receive_request_body(client_socket, content_length):
-    return client_socket.recv(content_length)
-
 def handle_get_request(client_socket, host_name, request):
     # ... (same implementation as before)
     connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    port = 80
     
     try:
         print(host_name)
         # host = socket.gethostbyname('www.example.com')
-        host = socket.gethostbyname(host_name)
+        # host = socket.gethostbyname(host_name)
     except socket.gaierror:
         # this means could not resolve the host
         print ("there was an error resolving the host")
         return
  
     # connecting to the server
-    connection.connect((host, port))
+    connection.connect((host_name, PORT))
     print ("the socket has successfully connected to url")
     
     #send request and get response
