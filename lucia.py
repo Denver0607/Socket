@@ -15,9 +15,25 @@ NOT_FOUND_PAGE = "404.html"
 BUFSIZE = 4096
 PORT = 80
 
+def read_config():
+    # Read and parse the configuration file
+    # Implement configuration file parsing logic and return settings
+    config = configparser.ConfigParser()
+    config.read(CONFIG_FILE)
+    
+    config_dict = {}
+    for section in config.sections():
+        config_dict[section] = {}
+        for key, value in config[section].items():
+            config_dict[section][key] = value.split(',')
+    
+    return config_dict
+
+settings = read_config()
+
 def receive_data(client_socket):
     # print("receive_data: ")
-    print(client_socket.getsockname)
+    # print(client_socket.getsockname)
     # print(0)
     data = b''
     
@@ -345,7 +361,7 @@ def handle_head_request(host_name, request):
     
     return response
 
-def handle_request(settings, client_socket):
+def handle_request(client_socket):
     # print(client_socket.getsockname)
     # print(2)
     # request = receive_data(client_socket)
@@ -405,48 +421,38 @@ def handle_request(settings, client_socket):
 
     client_socket.close()
 
-def read_config():
-    # Read and parse the configuration file
-    # Implement configuration file parsing logic and return settings
-    config = configparser.ConfigParser()
-    config.read(CONFIG_FILE)
+def accept_incoming_connections(proxy_server):
+    while 1:
+        print('From another thread')
+        print()
+        client_socket, client_address = proxy_server.accept()
+        print(f"Accepted connection from {client_address[0]}:{client_address[1]}")
+        # clients[client_socket] = client_socket
+        print('Proxy is waiting for resquest')
+        THREAD = threading.Thread(target=handle_request, args=(client_socket,))
+        THREAD.start()
+        # handle_request(settings, client_socket)
+        print('\r\n\r\n')
     
-    config_dict = {}
-    for section in config.sections():
-        config_dict[section] = {}
-        for key, value in config[section].items():
-            config_dict[section][key] = value.split(',')
-    
-    return config_dict
-
 def main():
     if not os.path.exists(CACHE_DIRECTORY):
         os.mkdir(CACHE_DIRECTORY)
-
-    settings = read_config()
 
     proxy_host = "127.0.0.1"
     proxy_port = 10000
 
     proxy_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     proxy_server.bind((proxy_host, proxy_port))
-    proxy_server.listen(1)
+    proxy_server.listen(10)
 
     print(f"Proxy server is listening on {proxy_host}:{proxy_port}")
 
     try:
-        while True:
-            client_socket, client_address = proxy_server.accept()
-            print(f"Accepted connection from {client_address[0]}:{client_address[1]}")
-            # chunk = client_socket.recv(4096)
-            # chunk = receive_data(client_socket)
-            # print("main request: ")
-            # print(chunk.decode())
-            # print(client_socket.getsockname)
-            handle_request(settings, client_socket)
-            print('\r\n\r\n')
-            # proxy_server.close()
-            # threading.Thread(target=handle_request, args=(client_socket,)).start()
+        # while True:
+        ACCEPT_THREAD = threading.Thread(target=accept_incoming_connections, args=(proxy_server,))
+        ACCEPT_THREAD.start()
+        ACCEPT_THREAD.join()
+            
     except KeyboardInterrupt:
         print("Proxy server stopped.")
         proxy_server.close()
