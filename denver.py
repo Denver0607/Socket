@@ -2,10 +2,8 @@
 # This file doesn't use OOP style. It suitable for us to understand the logic of proxy server.
 import socket
 import os
-from os import stat
 from threading import Thread, enumerate
 from datetime import datetime
-from os.path import isfile, join
 from mimetypes import guess_type
 
 CACHE_DIRECTORY = "cache"
@@ -20,13 +18,22 @@ def receive_data(client_socket):
 def parse_request(request):
     lines = request.split(b"\r\n")
     if not lines:
-        return None, None
+        return None, None, None
     
     str_lines = lines[0].decode("utf8").split(' ')
 
     method = str_lines[0]
-    url =  str_lines[1]
-    return method, url
+    if len(str_lines) > 2:
+        url =  str_lines[1]
+        protocol_version = str_lines[2] 
+    else:
+        url = "index.html"
+        protocol_version = ""
+    if method != "GET" and method != "POST" and method != "HEAD":
+        return method, None, None
+    if url == "http://detectportal.firefox.com/canonical.html" or url == "http://r3.o.lencr.org/" or url == "http://ocsp.digicert.com/":
+        return None, None, None
+    return method, url, protocol_version
 
 def get_content_length(request):
     content_length_header = b"Content-Length: "
@@ -75,7 +82,7 @@ def send_not_found_response(client_socket):
 def is_whitelisted(url):
     # Implement whitelisting logic from the config file
     # Return True if URL is whitelisted, otherwise False
-    return False
+    return True
 
 def is_time_allowed():
     # Implement time-based access restrictions from the config file
@@ -83,26 +90,15 @@ def is_time_allowed():
     return True
 
 def get_file_size(resource):
-    """
-    This method gets the size of the resource.
-    :param resource: resource to get size from
-    :return: the file size as an integer
-    """
-
     file_size = 0
-    if isfile(resource):
-        file_size = stat(resource).st_size
+    # a=isfile(resource)
+    # if isfile(resource):
+    file_size = os.stat(resource).st_size
 
     return file_size
 
 
 def read_file(file):
-    """
-    This method reads the bytes from the resource and returns it.
-    :param file: the resource to read bytes from
-    :return: the read file as a bytes object
-    """
-
     file_data = b''
 
     if get_file_size(file):
@@ -114,12 +110,6 @@ def read_file(file):
     return file_data
 
 def get_mime_type(file):
-    """
-    This method gets the MIME type of the requested file.
-    :param file: file to get MIME type from
-    :return: the MIME type of the file
-    """
-
     mime_type = b'text/html'
 
     if get_file_size(file) > 0:
@@ -145,12 +135,6 @@ def get_response_headers(file):
     return response_headers
 
 def get_status_line(file_size):
-    """
-    This method returns the status line for the HTTP response based on the file size.
-    :param file_size: the size of the requested file
-    :return: the status line as a bytes object
-    """
-
     status_line = b'HTTP/1.1 '
 
     if file_size > 0:
@@ -160,48 +144,35 @@ def get_status_line(file_size):
 
     return status_line
 
-# def handle_get_request(client_socket, url):
-#     url = url[1:]
-#     if url == '':
-#         url = 'index.html'
-        
-#     file = join('url',url)
-    
-#     file_size = get_file_size(file)
-#     http_response = get_status_line(file_size)
-    
-#     response_headers= get_response_headers(file)
-#     print(response_headers)
-    
-#     for response_header in response_headers:
-#         http_response +=  response_header
-        
-#     http_response+= b'\r\n'
-#     http_response += read_file(file)
-    
-#     client_socket.sendall(http_response)
-
 def handle_get_request(client_socket, url):
-    url = url[1:]
+    # url = url[7:]
     if url == '':
         url = 'index.html'
+    # file = join('url',url)
+    # http_response=b''    
+    # if os.path.isfile(file):
+    #     file_size = get_file_size(file)
+    #     http_response = get_status_line(file_size)
         
-    file = os.path.join('url', url)
-    http_response=b''
-    
-    if os.path.isfile(file):
-        file_size = get_file_size(file)
-        http_response = get_status_line(file_size)
-        
-        response_headers = get_response_headers(file)
-        for response_header in response_headers:
-            http_response += response_header
+    #     response_headers = get_response_headers(file)
+    #     for response_header in response_headers:
+    #         http_response += response_header
             
-        http_response += b'\r\n'
-        http_response += read_file(file)
-    else:
-        send_not_found_response(client_socket)
-    
+    #     http_response += b'\r\n'
+    #     http_response += read_file(file)
+    # else:
+    #     send_not_found_response(client_socket)
+    file_size = get_file_size(url)
+    http_response = get_status_line(file_size)
+
+    response_headers = get_response_headers(url)
+
+    for response_header in response_headers:
+        http_response += response_header
+
+    http_response += b'\r\n'
+    http_response += read_file(url)
+
     client_socket.sendall(http_response)
     
 def handle_post_request(client_socket, url, request, content_length):
@@ -213,17 +184,14 @@ def handle_head_request(client_socket, url):
     pass
 
 def handle_request(client_socket):
-    # print(client_socket.getsockname)
-    # print(2)
     request = receive_data(client_socket)
-    # print("request: ")
-    # print(request.decode("utf8"))
-    # print(3)
-    method, url = parse_request(request)
-    print(method)
-    print(url)
+        
+    method, url, protocol_version = parse_request(request)
+    if method == None:
+        return
+    print(f"{method} {url} {protocol_version}")
     content_length = get_content_length(request)
-
+    
     if method and url and is_whitelisted(url) and is_time_allowed():
         if method == "GET":
             handle_get_request(client_socket, url)
@@ -246,13 +214,13 @@ def read_config():
     pass
 
 def main():
-    if not os.path.exists(CACHE_DIRECTORY):
-        os.mkdir(CACHE_DIRECTORY)
+    # if not os.path.exists(CACHE_DIRECTORY):
+    #     os.mkdir(CACHE_DIRECTORY)
 
     settings = read_config()
 
     proxy_host = "127.0.0.1"
-    proxy_port = 10000
+    proxy_port = 8888
 
     proxy_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     proxy_server.bind((proxy_host, proxy_port))
@@ -263,7 +231,6 @@ def main():
     try:
         while True:
             client_socket, client_address = proxy_server.accept()
-            print(f"Accepted connection from {client_address[0]}:{client_address[1]}")
             # chunk = client_socket.recv(4096)
             # chunk = receive_data(client_socket)
             # print("main request: ")
@@ -274,9 +241,9 @@ def main():
             # threading.Thread(target=handle_request, args=(client_socket,)).start()
     except KeyboardInterrupt:
         print("Proxy server stopped.")
-        proxy_server.close()
     finally:
         proxy_server.close()
 
-if __name__ == "__main__":
-    main()
+main()
+    
+
