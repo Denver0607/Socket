@@ -19,18 +19,28 @@ def receive_data(client_socket):
     # print("receive_data: ")
     # print(client_socket.getsockname)
     # print(0)
-    data = b""
+    data = b''
     # while True:
-    while b"\r\n\r\n" not in data:
+    while b'\r\n\r\n' not in data:
         data += client_socket.recv(BUFSIZE)
+        
+    first_line, headers, body = read_message_headers(data)
+    # print(first_line)
+    # print(headers)
     
-    content_length = get_content_length(data)
+    content_length = 0
+    if 'Content-Length' in headers:
+        content_length = int(headers['Content-Length'])
+    
+    # content_length = get_content_length(data)
     if content_length != 0:
-        data_content_length = len(data.split(b'\r\n\r\n')[1])
-        while content_length > data_content_length:
-            chunk = client_socket.recv(BUFSIZE)
-            data_content_length += len(chunk)
-            data += chunk
+        # data_content_length = len(data.split(b'\r\n\r\n')[1])
+        while content_length > len(body):
+        #     chunk = client_socket.recv(BUFSIZE)
+        #     data_content_length += len(chunk)
+        #     data += chunk
+            body += receive_request_body(client_socket, content_length)
+        # print(len(body))
             
     # data = client_socket.recv(4096)
     # print(data.decode())
@@ -42,7 +52,8 @@ def receive_data(client_socket):
         # data += chunk
         # if (b'\r\n\r\n') in data:
         #     break
-    return data
+    # return data
+    return first_line, headers, body
 
 def parse_request(request):
     # print("parse_request: ")
@@ -63,7 +74,7 @@ def parse_request(request):
     # url = None
     return method, url
 
-def read_http_request(request):
+def read_message_headers(request):
     """
     This method reads in the entire HTTP request.
     :param request_socket: the socket to read bytes from
@@ -72,27 +83,37 @@ def read_http_request(request):
     """
 
     # all HTTP requests ends with a \r\n\r\n (CR LF CR LF)
-    http_request = request
+    http_message = request
+    
+    body = b''
+    message = http_message.split(b'\r\n\r\n',1)
+    message_headers = message[0]
+    print(message_headers.decode())
+    if (len(message) > 1):
+        body = message[1]
+    
 
-    request_line, request_headers = http_request.decode().split('\r\n', 1)
+    first_line, headers = message_headers.decode().split("\r\n", 1)
 
     # tuple of HTTP request, resource, and protocol version
-    request_line = request_line.split(' ', 3)
+    # first_line = first_line.decode()
+    first_line = first_line.split(' ', 3)
 
-    request_header_dictionary = {}
+    header_dictionary = {}
 
     # separate by different headers
-    request_headers = request_headers.split('\r\n')
+    # headers = headers.decode()
+    headers = headers.split('\r\n')
 
     # filter makes sure that no empty strings are processed
-    for header in filter(lambda x: x != "", request_headers):
+    for header in filter(lambda x: x != "", headers):
         # split by colon(:), only do one split for an array of length 2
         split_header = header.split(': ', 1)
 
         # set the header field equal to the header value in the dictionary
-        request_header_dictionary[split_header[0]] = split_header[1]
+        header_dictionary[split_header[0]] = split_header[1]
 
-    return request_line, request_header_dictionary
+    return first_line, header_dictionary, body
 
 def extract_hostname_and_path(url):
     # Remove the scheme (e.g., 'https://') from the URL
@@ -213,6 +234,8 @@ def is_time_allowed(allowed_time):
     # Implement time-based access restrictions from the config file
     # Return True if access is allowed, otherwise False
     
+    return True
+    
     tm = time.localtime()
     # tm = datetime.datetime.now()
     # current_time = time.strftime("%H:%M:%S", tm)
@@ -226,6 +249,21 @@ def is_time_allowed(allowed_time):
     if start_time <= cur_time and cur_time <= end_time:
         return True
     return False
+
+def make_message(request_line, headers, body):
+    request = b''
+    for item in request_line:
+        request += item.encode() + b' '
+    request = request[:-1]
+    request += b'\r\n'
+    
+    for key, value in headers.items():
+        request += key.encode() + b': ' + value.encode() + b'\r\n'
+    request += b'\r\n'
+    
+    request += body
+    
+    return request
 
 def handle_get_request(client_socket, host_name, request):
     # ... (same implementation as before)
@@ -246,13 +284,16 @@ def handle_get_request(client_socket, host_name, request):
     
     #send request and get response
     connection.sendall(request)
-    response = receive_data(connection)
+    status, headers, body = receive_data(connection)
     # response = b""
     # response += connection.recv(4096)
     # print(response.decode())
     connection.close()
     
     #send response to the client
+    print('Response body lenght: ')
+    print(len(body))
+    response = make_message(status, headers, body)
     return response
 
 def handle_post_request(client_socket, url, request, content_length):
@@ -266,26 +307,44 @@ def handle_head_request(client_socket, url):
 def handle_request(settings, client_socket):
     # print(client_socket.getsockname)
     # print(2)
-    request = receive_data(client_socket)
+    # request = receive_data(client_socket)
     # print("request: ")
     # print(request.decode())
     # print(3)
-    method, url = parse_request(request)
-    content_length = get_content_length(request)
-    print(method)
-    print(url)
-    # print(is_whitelisted(url))
-    # print(is_time_allowed())
+    request_line, headers, body = receive_data(client_socket)
+    print('Request body lenght: ')
+    print(len(body))
+    print('\r\n')
+    
+    # print('Request:')
+    # print(request_line)
+    # print(headers)
+    
+    method = request_line[0]
+    url = request_line[1]
+    # method, url = parse_request(request)
+    # content_length = get_content_length(request)
     host_name, path = extract_hostname_and_path(url)
 
     section = 'CONFIGURATION'
     if method and url and is_whitelisted(settings[section]['whitelisting'], host_name) and is_time_allowed(settings[section]['time']):
         print("all parameters are not None")
         if method == "GET":
+            request = make_message(request_line, headers, body)
+            
+            # print('Test_line: ')
+            # a, b, c = read_message_headers(request)
+            # # c = receive_request_body()
+            # print('Body length: ' + str(len(c)))
+            # test_line1, test_line2 = read_message_headers(request)
+            # print(test_line1)
+            # print(test_line2)
+            
             response = handle_get_request(client_socket, host_name, request)
+            # print()
             # content_length = get_content_length(response)
             # print(content_length)
-            # status, header = read_http_request(response)
+            # status, header = read_http_message(response)
             # print(status)
             # print(header)
             # print(response.decode())
@@ -343,7 +402,7 @@ def main():
             # print(chunk.decode())
             # print(client_socket.getsockname)
             handle_request(settings, client_socket)
-            print(4)
+            print('\r\n\r\n')
             # proxy_server.close()
             # threading.Thread(target=handle_request, args=(client_socket,)).start()
     except KeyboardInterrupt:
