@@ -17,7 +17,7 @@ PORT = 80
 
 def receive_data(client_socket):
     # print("receive_data: ")
-    # print(client_socket.getsockname)
+    print(client_socket.getsockname)
     # print(0)
     data = b''
     
@@ -26,17 +26,29 @@ def receive_data(client_socket):
         
     first_line, headers, body = read_message_headers(data)
     
+    # solve Connection: keep-alive (Content-Length)
     content_length = 0
     
     if 'Content-Length' in headers:
         content_length = int(headers['Content-Length'])
     
-    if content_length != 0:
-        while content_length > len(body):
-            body += receive_request_body(client_socket, content_length)
+        if content_length != 0:
+            while content_length > len(body):
+                # body += receive_request_body(client_socket, content_length)
+                body += client_socket.recv(BUFSIZE)
+                
+    # solve Connection: keep-alive (Transfer-Encoding)
+    elif 'Transfer-Encoding' in headers:
+        while b'\r\n\r\n' not in body:
+            # chunk = client_socket.recv(BUFSIZE)
+            # if len(chunk) == 0:
+            #     break
+            # body += chunk
+            body += client_socket.recv(BUFSIZE)
             
     return first_line, headers, body
 
+# not use yet
 def parse_request(request):
     # print("parse_request: ")
     # print(request.decode())
@@ -245,21 +257,26 @@ def make_message(first_line, headers, body):
     
     return request
 
-def handle_get_request(client_socket, host_name, request):
+def handle_get_request(host_name, request):
     # ... (same implementation as before)
     connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     
-    # try:
-    #     print(host_name)
-    #     # host = socket.gethostbyname('www.example.com')
-    #     # host = socket.gethostbyname(host_name)
-    # except socket.gaierror:
-    #     # this means could not resolve the host
-    #     print ("there was an error resolving the host")
-    #     return
+    try:
+        print(host_name)
+        # host = socket.gethostbyname('www.example.com')
+        # host = socket.gethostbyname(host_name)
+    except socket.gaierror:
+        # this means could not resolve the host
+        print ("there was an error resolving the host")
+        return
+    
+    # print('Handle_get_request:')
+    # print(host_name)
+    # print(PORT)
     
     # connecting to the server
     connection.connect((host_name, PORT))
+    
     print('Successfully connecting to ' + host_name)
     
     #send request and get response
@@ -269,7 +286,7 @@ def handle_get_request(client_socket, host_name, request):
     connection.close()
     
     #send response to the client
-    print('Response body lenght: ')
+    print('Response body length: ')
     print(len(body))
     
     response = status[1].encode()
@@ -278,15 +295,55 @@ def handle_get_request(client_socket, host_name, request):
     
     return response
 
-# empty
-def handle_post_request(client_socket, url, request, content_length):
+def handle_post_request(host_name, request):
     # ... (same implementation as before)
-    pass
+    connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    
+    # connecting to the server
+    connection.connect((host_name, PORT))
+    
+    print('Successfully connecting to ' + host_name)
+    
+    #send request and get response
+    connection.sendall(request)
+    status, headers, body = receive_data(connection)
+    
+    connection.close()
+    
+    #send response to the client
+    print('Response body length: ')
+    print(len(body))
+    
+    response = status[1].encode()
+    if response != b'404' and response != b'403':
+        response = make_message(status, headers, body)
+    
+    return response
 
-#empty
-def handle_head_request(client_socket, url):
+def handle_head_request(host_name, request):
     # ... (same implementation as before)
-    pass
+    connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    
+    # connecting to the server
+    connection.connect((host_name, PORT))
+    
+    print('Successfully connecting to ' + host_name)
+    
+    #send request and get response
+    connection.sendall(request)
+    status, headers, body = receive_data(connection)
+    
+    connection.close()
+    
+    #send response to the client
+    print('Response body length: ')
+    print(len(body))
+    
+    response = status[1].encode()
+    if response != b'404' and response != b'403':
+        response = make_message(status, headers, body)
+    
+    return response
 
 def handle_request(settings, client_socket):
     # print(client_socket.getsockname)
@@ -296,7 +353,7 @@ def handle_request(settings, client_socket):
     # print(request.decode())
     # print(3)
     request_line, headers, body = receive_data(client_socket)
-    print('Request body lenght: ')
+    print('Request body length: ')
     print(len(body))
     print('\r\n')
     
@@ -313,9 +370,10 @@ def handle_request(settings, client_socket):
     section = 'CONFIGURATION'
     if method and url and is_whitelisted(settings[section]['whitelisting'], host_name) and is_time_allowed(settings[section]['time']):
         print("all parameters are not None")
+        response = b'403'
+        request = make_message(request_line, headers, body)
+        
         if method == "GET":
-            request = make_message(request_line, headers, body)
-            
             # print('Test_line: ')
             # a, b, c = read_message_headers(request)
             # # c = receive_request_body()
@@ -324,28 +382,23 @@ def handle_request(settings, client_socket):
             # print(test_line1)
             # print(test_line2)
             
-            response = handle_get_request(client_socket, host_name, request)
-            # print()
-            # content_length = get_content_length(response)
-            # print(content_length)
-            # status, header = read_http_message(response)
-            # print(status)
-            # print(header)
-            # print(response.decode())
-            if response == b'403':
-                send_forbidden_response(client_socket)
-            elif response == b'404':
-                send_not_found_response(client_socket)
-            else:
-                send_response(client_socket, response)
+            response = handle_get_request(host_name, request)
                 
         elif method == "POST":
-            handle_post_request(client_socket, url, request, content_length)
+            response = handle_post_request(host_name, request)
         elif method == "HEAD":
-            handle_head_request(client_socket, url)
+            response = handle_head_request(host_name, request)
         else:
             # Unsupported method, return 403 Forbidden
             send_forbidden_response(client_socket)
+            
+        if response == b'403':
+            send_forbidden_response(client_socket)
+        elif response == b'404':
+            send_not_found_response(client_socket)
+        else:
+            send_response(client_socket, response)
+            
     else:
         # URL not whitelisted or access not allowed, return 403 Forbidden
         send_forbidden_response(client_socket)
