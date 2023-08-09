@@ -42,6 +42,53 @@ def parse_request(request):
     # url = None
     return method, url
 
+def read_http_request(request):
+    """
+    This method reads in the entire HTTP request.
+    :param request_socket: the socket to read bytes from
+    :return: a tuple of the request line (as a tuple of HTTP request, resource, and protocol version)
+             and the request headers, in ASCII. It also returns a dict of the request headers
+    """
+
+    # all HTTP requests ends with a \r\n\r\n (CR LF CR LF)
+    http_request = request
+
+    request_line, request_headers = http_request.decode().split('\r\n', 1)
+
+    # tuple of HTTP request, resource, and protocol version
+    request_line = request_line.split(' ', 3)
+
+    request_header_dictionary = {}
+
+    # separate by different headers
+    request_headers = request_headers.split('\r\n')
+
+    # filter makes sure that no empty strings are processed
+    for header in filter(lambda x: x != "", request_headers):
+        # split by colon(:), only do one split for an array of length 2
+        split_header = header.split(': ', 1)
+
+        # set the header field equal to the header value in the dictionary
+        request_header_dictionary[split_header[0]] = split_header[1]
+
+    return request_line, request_header_dictionary
+
+
+def extract_hostname_and_path(url):
+    # Remove the scheme (e.g., 'https://') from the URL
+    url_without_scheme = url.split('://', 1)[-1]
+
+    # Find the first slash to separate the hostname from the path
+    slash_index = url_without_scheme.find('/')
+    if slash_index == -1:
+        # If there is no slash, the entire URL is the hostname
+        return url_without_scheme, '/'
+    else:
+        # Extract the hostname and path components
+        hostname = url_without_scheme[:slash_index]
+        path = url_without_scheme[slash_index:]
+        return hostname, path
+    
 def get_content_length(request):
     content_length_header = b"Content-Length: "
     index = request.find(content_length_header)
@@ -155,7 +202,6 @@ def get_content_length(request):
 def receive_request_body(client_socket, content_length):
     return client_socket.recv(content_length)
 
-
 def handle_get_request(client_socket, host_name, request):
     # ... (same implementation as before)
     connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -176,8 +222,9 @@ def handle_get_request(client_socket, host_name, request):
     
     #send request and get response
     connection.sendall(request)
-    response = b""
-    response += connection.recv(4096)
+    response = receive_data(connection)
+    # response = b""
+    # response += connection.recv(4096)
     # print(response.decode())
     connection.close()
     
@@ -200,18 +247,23 @@ def handle_request(client_socket):
     # print(request.decode())
     # print(3)
     method, url = parse_request(request)
-    # print(method)
-    # print(url)
+    content_length = get_content_length(request)
+    print(method)
+    print(url)
     # print(is_whitelisted(url))
     # print(is_time_allowed())
-    content_length = get_content_length(request)
-    
-    host_name = 'google.com'
+    host_name, path = extract_hostname_and_path(url)
 
     if method and url and is_whitelisted(host_name) and is_time_allowed():
         print("all parameters are not None")
         if method == "GET":
             response = handle_get_request(client_socket, host_name, request)
+            # content_length = get_content_length(response)
+            # print(content_length)
+            # status, header = read_http_request(response)
+            # print(status)
+            # print(header)
+            # print(response.decode())
             if response:
                 send_response(client_socket, response)
         elif method == "POST":
