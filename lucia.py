@@ -20,39 +20,21 @@ def receive_data(client_socket):
     # print(client_socket.getsockname)
     # print(0)
     data = b''
-    # while True:
+    
     while b'\r\n\r\n' not in data:
         data += client_socket.recv(BUFSIZE)
         
     first_line, headers, body = read_message_headers(data)
-    # print(first_line)
-    # print(headers)
     
     content_length = 0
+    
     if 'Content-Length' in headers:
         content_length = int(headers['Content-Length'])
     
-    # content_length = get_content_length(data)
     if content_length != 0:
-        # data_content_length = len(data.split(b'\r\n\r\n')[1])
         while content_length > len(body):
-        #     chunk = client_socket.recv(BUFSIZE)
-        #     data_content_length += len(chunk)
-        #     data += chunk
             body += receive_request_body(client_socket, content_length)
-        # print(len(body))
             
-    # data = client_socket.recv(4096)
-    # print(data.decode())
-    # print(1)
-    # while True:
-        # chunk = client_socket.recv(8192)
-        # if not chunk:
-        #     break            
-        # data += chunk
-        # if (b'\r\n\r\n') in data:
-        #     break
-    # return data
     return first_line, headers, body
 
 def parse_request(request):
@@ -75,28 +57,17 @@ def parse_request(request):
     return method, url
 
 def read_message_headers(request):
-    """
-    This method reads in the entire HTTP request.
-    :param request_socket: the socket to read bytes from
-    :return: a tuple of the request line (as a tuple of HTTP request, resource, and protocol version)
-             and the request headers, in ASCII. It also returns a dict of the request headers
-    """
-
-    # all HTTP requests ends with a \r\n\r\n (CR LF CR LF)
     http_message = request
-    
     body = b''
+    
     message = http_message.split(b'\r\n\r\n',1)
     message_headers = message[0]
     print(message_headers.decode())
     if (len(message) > 1):
         body = message[1]
     
-
     first_line, headers = message_headers.decode().split("\r\n", 1)
 
-    # tuple of HTTP request, resource, and protocol version
-    # first_line = first_line.decode()
     first_line = first_line.split(' ', 3)
 
     header_dictionary = {}
@@ -130,6 +101,7 @@ def extract_hostname_and_path(url):
         path = url_without_scheme[slash_index:]
         return hostname, path
     
+# not use yet
 def get_content_length(request):
     content_length_header = b"Content-Length: "
     index = request.find(content_length_header)
@@ -143,6 +115,7 @@ def get_content_length(request):
 def receive_request_body(client_socket, content_length):
     return client_socket.recv(content_length)
 
+# not use yet
 def get_file_size(resource):
     """
     This method gets the size of the resource.
@@ -157,6 +130,7 @@ def get_file_size(resource):
     # return file_size
     pass
 
+# not use yet
 def read_file(file):
     """
     This method reads the bytes from the resource and returns it.
@@ -174,6 +148,7 @@ def read_file(file):
 
     return file_data
 
+# not use yet
 def get_response_headers(file):
     # response_headers = []
 
@@ -230,6 +205,7 @@ def is_whitelisted(whitelisting, host_name):
             return True
     return False
 
+# always True now
 def is_time_allowed(allowed_time):
     # Implement time-based access restrictions from the config file
     # Return True if access is allowed, otherwise False
@@ -250,17 +226,21 @@ def is_time_allowed(allowed_time):
         return True
     return False
 
-def make_message(request_line, headers, body):
+def make_message(first_line, headers, body):
     request = b''
-    for item in request_line:
+    
+    # add request/status line
+    for item in first_line:
         request += item.encode() + b' '
     request = request[:-1]
     request += b'\r\n'
     
+    # add headers
     for key, value in headers.items():
         request += key.encode() + b': ' + value.encode() + b'\r\n'
     request += b'\r\n'
     
+    # add body
     request += body
     
     return request
@@ -269,37 +249,41 @@ def handle_get_request(client_socket, host_name, request):
     # ... (same implementation as before)
     connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     
-    try:
-        print(host_name)
-        # host = socket.gethostbyname('www.example.com')
-        # host = socket.gethostbyname(host_name)
-    except socket.gaierror:
-        # this means could not resolve the host
-        print ("there was an error resolving the host")
-        return
- 
+    # try:
+    #     print(host_name)
+    #     # host = socket.gethostbyname('www.example.com')
+    #     # host = socket.gethostbyname(host_name)
+    # except socket.gaierror:
+    #     # this means could not resolve the host
+    #     print ("there was an error resolving the host")
+    #     return
+    
     # connecting to the server
     connection.connect((host_name, PORT))
-    print ("the socket has successfully connected to url")
+    print('Successfully connecting to ' + host_name)
     
     #send request and get response
     connection.sendall(request)
     status, headers, body = receive_data(connection)
-    # response = b""
-    # response += connection.recv(4096)
-    # print(response.decode())
+    
     connection.close()
     
     #send response to the client
     print('Response body lenght: ')
     print(len(body))
-    response = make_message(status, headers, body)
+    
+    response = status[1].encode()
+    if response != b'404' and response != b'403':
+        response = make_message(status, headers, body)
+    
     return response
 
+# empty
 def handle_post_request(client_socket, url, request, content_length):
     # ... (same implementation as before)
     pass
 
+#empty
 def handle_head_request(client_socket, url):
     # ... (same implementation as before)
     pass
@@ -348,8 +332,13 @@ def handle_request(settings, client_socket):
             # print(status)
             # print(header)
             # print(response.decode())
-            if response:
+            if response == b'403':
+                send_forbidden_response(client_socket)
+            elif response == b'404':
+                send_not_found_response(client_socket)
+            else:
                 send_response(client_socket, response)
+                
         elif method == "POST":
             handle_post_request(client_socket, url, request, content_length)
         elif method == "HEAD":
