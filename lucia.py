@@ -233,12 +233,12 @@ def is_whitelisted(whitelisting, host_name):
             return True
     return False
 
-# always True now
+# access time: 8-20
 def is_time_allowed(allowed_time):
     # Implement time-based access restrictions from the config file
     # Return True if access is allowed, otherwise False
     
-    return True
+    # return True
     
     tm = time.localtime()
     # tm = datetime.datetime.now()
@@ -273,7 +273,7 @@ def make_message(first_line, headers, body):
     
     return request
 
-def handle_get_request(host_name, request):
+def handle_request_message(host_name, request):
     # ... (same implementation as before)
     connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     
@@ -308,12 +308,12 @@ def handle_get_request(host_name, request):
     print(len(body))
     
     response = status[1].encode()
-    # if response != b'404' and response != b'403' and response != '100':
     if response < b'400':
         response = make_message(status, headers, body)
     
     return response
 
+# not use yet
 def handle_post_request(host_name, request):
     # ... (same implementation as before)
     connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -339,6 +339,7 @@ def handle_post_request(host_name, request):
     
     return response
 
+# not use yet
 def handle_head_request(host_name, request):
     # ... (same implementation as before)
     connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -365,12 +366,6 @@ def handle_head_request(host_name, request):
     return response
 
 def handle_request(client_socket):
-    # print(client_socket.getsockname)
-    # print(2)
-    # request = receive_data(client_socket)
-    # print("request: ")
-    # print(request.decode())
-    # print(3)
     request_line, headers, body = receive_data(client_socket)
     print('Request body length: ')
     print(len(body))
@@ -382,8 +377,6 @@ def handle_request(client_socket):
     
     method = request_line[0]
     url = request_line[1]
-    # method, url = parse_request(request)
-    # content_length = get_content_length(request)
     host_name, path = extract_hostname_and_path(url)
 
     section = 'CONFIGURATION'
@@ -393,23 +386,8 @@ def handle_request(client_socket):
         request = make_message(request_line, headers, body)
         
         if method == 'GET' or method == 'POST' or method == 'HEAD':
-            response = handle_get_request(host_name, request)
+            response = handle_request_message(host_name, request)
         
-        # if method == "GET":
-        #     # print('Test_line: ')
-        #     # a, b, c = read_message_headers(request)
-        #     # # c = receive_request_body()
-        #     # print('Body length: ' + str(len(c)))
-        #     # test_line1, test_line2 = read_message_headers(request)
-        #     # print(test_line1)
-        #     # print(test_line2)
-            
-        #     response = handle_get_request(host_name, request)
-                
-        # elif method == "POST":
-        #     response = handle_post_request(host_name, request)
-        # elif method == "HEAD":
-        #     response = handle_head_request(host_name, request)
         else:
             # Unsupported method, return 403 Forbidden
             send_forbidden_response(client_socket)
@@ -431,8 +409,6 @@ def handle_request(client_socket):
 
 def accept_incoming_connections(proxy_server):
     while 1:
-        print('From another thread')
-        print()
         client_socket, client_address = proxy_server.accept()
         print(f"Accepted connection from {client_address[0]}:{client_address[1]}")
         # clients[client_socket] = client_socket
@@ -440,7 +416,6 @@ def accept_incoming_connections(proxy_server):
         THREAD = threading.Thread(target=handle_request, args=(client_socket,))
         THREAD.start()
         # handle_request(settings, client_socket)
-        print('\r\n\r\n')
     
 def main():
     if not os.path.exists(CACHE_DIRECTORY):
@@ -456,7 +431,6 @@ def main():
     print(f"Proxy server is listening on {proxy_host}:{proxy_port}")
 
     try:
-        # while True:
         ACCEPT_THREAD = threading.Thread(target=accept_incoming_connections, args=(proxy_server,))
         ACCEPT_THREAD.start()
         ACCEPT_THREAD.join()
