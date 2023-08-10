@@ -298,6 +298,8 @@ def handle_get_request(host_name, request):
     #send request and get response
     connection.sendall(request)
     status, headers, body = receive_data(connection)
+    while status[1] == '100':
+        status, headers, body = receive_data(connection)
     
     connection.close()
     
@@ -306,7 +308,8 @@ def handle_get_request(host_name, request):
     print(len(body))
     
     response = status[1].encode()
-    if response != b'404' and response != b'403':
+    # if response != b'404' and response != b'403' and response != '100':
+    if response < b'400':
         response = make_message(status, headers, body)
     
     return response
@@ -389,29 +392,34 @@ def handle_request(client_socket):
         response = b'403'
         request = make_message(request_line, headers, body)
         
-        if method == "GET":
-            # print('Test_line: ')
-            # a, b, c = read_message_headers(request)
-            # # c = receive_request_body()
-            # print('Body length: ' + str(len(c)))
-            # test_line1, test_line2 = read_message_headers(request)
-            # print(test_line1)
-            # print(test_line2)
-            
+        if method == 'GET' or method == 'POST' or method == 'HEAD':
             response = handle_get_request(host_name, request)
+        
+        # if method == "GET":
+        #     # print('Test_line: ')
+        #     # a, b, c = read_message_headers(request)
+        #     # # c = receive_request_body()
+        #     # print('Body length: ' + str(len(c)))
+        #     # test_line1, test_line2 = read_message_headers(request)
+        #     # print(test_line1)
+        #     # print(test_line2)
+            
+        #     response = handle_get_request(host_name, request)
                 
-        elif method == "POST":
-            response = handle_post_request(host_name, request)
-        elif method == "HEAD":
-            response = handle_head_request(host_name, request)
+        # elif method == "POST":
+        #     response = handle_post_request(host_name, request)
+        # elif method == "HEAD":
+        #     response = handle_head_request(host_name, request)
         else:
             # Unsupported method, return 403 Forbidden
             send_forbidden_response(client_socket)
-            
-        if response == b'403':
-            send_forbidden_response(client_socket)
-        elif response == b'404':
-            send_not_found_response(client_socket)
+        
+        if (len(response) == 3):
+            if response == b'404':
+                send_not_found_response(client_socket)
+            else:
+                send_forbidden_response(client_socket)
+             
         else:
             send_response(client_socket, response)
             
