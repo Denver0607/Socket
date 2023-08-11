@@ -8,7 +8,7 @@ import datetime
 import configparser
 import time
 
-CACHE_DIRECTORY = "cache"
+CACHE_DIRECTORY = "../Socket/cache"
 CONFIG_FILE = "config.ini"
 FORBIDDEN_PAGE = "403.html"
 NOT_FOUND_PAGE = "404.html"
@@ -30,6 +30,9 @@ def read_config():
     return config_dict
 
 settings = read_config()
+section = 'CONFIGURATION'
+
+EXPIRATION_TIME = int(settings[section]['cache_time'][0])
 
 def receive_data(client_socket):
     # print("receive_data: ")
@@ -90,12 +93,13 @@ def read_message_headers(request):
     
     message = http_message.split(b'\r\n\r\n',1)
     message_headers = message[0]
-    print(message_headers.decode())
+    # print(message_headers.decode())
+    # print()
     if (len(message) > 1):
         body = message[1]
     
-    first_line, headers = message_headers.decode().split("\r\n", 1)
 
+    first_line, headers = message_headers.decode().split("\r\n", 1)
     first_line = first_line.split(' ', 3)
 
     header_dictionary = {}
@@ -233,12 +237,12 @@ def is_whitelisted(whitelisting, host_name):
             return True
     return False
 
-# access time: 8-20
+# access time: all day
 def is_time_allowed(allowed_time):
     # Implement time-based access restrictions from the config file
     # Return True if access is allowed, otherwise False
     
-    # return True
+    return True
     
     tm = time.localtime()
     # tm = datetime.datetime.now()
@@ -367,9 +371,11 @@ def handle_head_request(host_name, request):
 
 def handle_request(client_socket):
     request_line, headers, body = receive_data(client_socket)
-    print('Request body length: ')
-    print(len(body))
-    print('\r\n')
+    # print('Request body length: ')
+    # print(len(body))
+    # print(request_line.decode())
+    # print(headers.decode())
+    # print('\r\n')
     
     # print('Request:')
     # print(request_line)
@@ -377,9 +383,10 @@ def handle_request(client_socket):
     
     method = request_line[0]
     url = request_line[1]
+    print(method + ' ' + url)
+    print()
     host_name, path = extract_hostname_and_path(url)
 
-    section = 'CONFIGURATION'
     if method and url and is_whitelisted(settings[section]['whitelisting'], host_name) and is_time_allowed(settings[section]['time']):
         print("all parameters are not None")
         response = b'403'
@@ -413,10 +420,116 @@ def accept_incoming_connections(proxy_server):
         print(f"Accepted connection from {client_address[0]}:{client_address[1]}")
         # clients[client_socket] = client_socket
         print('Proxy is waiting for resquest')
-        THREAD = threading.Thread(target=handle_request, args=(client_socket,))
-        THREAD.start()
-        # handle_request(settings, client_socket)
-    
+        # THREAD = threading.Thread(target=handle_request, args=(client_socket,))
+        # THREAD.start()
+        handle_request(client_socket)
+
+# in process
+def download_image(url, save_path):
+      # Extract the hostname and path from the URL
+    hostname, path = extract_hostname_and_path(url)
+
+    try:
+        # Create a socket object
+        client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+        # Connect to the server using port 80 (HTTP)
+        client_socket.connect((hostname, 80))
+
+        # Send an HTTP GET request to the server
+        request = f"GET {path} HTTP/1.1\r\nHost: {hostname}\r\n\r\n"
+        client_socket.sendall(request.encode())
+
+        # Receive and parse the response from the server
+        response = b""
+        while True:
+            chunk = client_socket.recv(8192)
+            if not chunk:
+                break
+            response += chunk
+
+        # Check if the response headers have been received
+        if b"\r\n\r\n" in response:
+            headers, file_data = response.split(b"\r\n\r\n", 1)
+
+            # Check for the status code in the headers
+            status_line = headers.split(b"\r\n", 1)[0]
+            status_code = int(status_line.split(b" ")[1])
+
+            if status_code == 200:
+                # Find the content type in the headers
+                content_type = None
+                for header in headers.split(b"\r\n"):
+                    if b"Content-Type: " in header:
+                        content_type = header.split(b"Content-Type: ")[1].strip()
+                        break
+
+                    # Save the image data to the specified file path
+                with open(save_path, 'wb') as f:
+                    f.write(file_data)
+                print(f"Image downloaded and saved to {save_path}")
+                     
+
+            else:
+                print(f"Failed to download image. Status code: {status_code}")
+
+    except Exception as e:
+        print(f"An error occurred: {e}")
+
+    finally:
+        # Close the socket
+        client_socket.close()
+
+#in process
+def get_cached_data(url,cache_expiration_time):
+      #Create the cache directory if it doesn't exist
+    if not os.path.exists(CACHE_DIRECTORY):
+        os.mkdir(CACHE_DIRECTORY)
+
+    basename = os.path.basename(url)
+    cache_filename = os.path.join(CACHE_DIRECTORY, basename)
+
+    try:
+        # Check if the data is cached and still valid
+        if os.path.exists(cache_filename):
+            # Get the last modified time of the cached file
+            cache_modified_time = os.path.getmtime(cache_filename)
+            current_time = datetime.datetime.now().timestamp()
+            # Calculate the age of the cached data in seconds
+            cache_age = current_time - cache_modified_time
+
+            # If the cached data is still valid, read and return it
+            if cache_age < cache_expiration_time:
+                with open(cache_filename, "rb") as file:
+                    cached_data = file.read()
+                print("HAVE ALREADY EXISTED")
+                return cached_data
+        else:
+            print ("NOT YET")
+            download_image(url,cache_filename)
+
+    except Exception as e:
+        # Handle any potential errors when accessing or reading the cache file
+        print(f"Error while accessing cached data: {e}")
+    print(cache_filename)
+    return None
+
+# done
+def cleanup_expired_cache():
+    # start_time = time.time()  # Record the start time
+    # while time.time() - start_time < MAX_THREAD_RUNTIME:
+    while 1:
+        current_time = datetime.datetime.now().timestamp()
+        for cached_file in os.listdir(CACHE_DIRECTORY):
+            cached_file_path = os.path.join(CACHE_DIRECTORY, cached_file)
+            cache_modified_time = os.path.getmtime(cached_file_path)
+            if current_time - cache_modified_time > EXPIRATION_TIME:
+                # The cached data has expired, remove the cached file
+                os.remove(cached_file_path)
+                print(f"Expired cached file '{cached_file}' removed.")
+        time.sleep(1)  # Sleep for 2 seconds before the next iteration
+
+
 def main():
     if not os.path.exists(CACHE_DIRECTORY):
         os.mkdir(CACHE_DIRECTORY)
@@ -426,7 +539,7 @@ def main():
 
     proxy_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     proxy_server.bind((proxy_host, proxy_port))
-    proxy_server.listen(10)
+    proxy_server.listen(1)
 
     print(f"Proxy server is listening on {proxy_host}:{proxy_port}")
 
