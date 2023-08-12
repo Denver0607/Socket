@@ -29,7 +29,7 @@ def read_config():
 
 settings = read_config()
 section = 'CONFIGURATION'
-
+TIME_OUT = int(settings[section]['time_out'][0])
 EXPIRATION_TIME = int(settings[section]['cache_time'][0])
 
 def receive_data(client_socket):
@@ -71,8 +71,8 @@ def read_message_headers(request):
     
     message = http_message.split(b'\r\n\r\n',1)
     message_headers = message[0]
-    print(message_headers.decode())
-    print()
+    # print(message_headers.decode())
+    # print()
     if (len(message) > 1):
         body = message[1]
     
@@ -191,53 +191,6 @@ def make_message(first_line, headers, body):
     
     return request
 
-# def handle_request_message(client_socket, host_name, request):
-#     web_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-#     try:
-#         print(host_name)
-#     except socket.gaierror:
-#         print ("there was an error resolving the host")
-#         return
-    
-#     # connecting to the server
-#     web_server.connect(('example.com', 80))
-    
-#     print('Successfully connecting to ' + host_name)
-    
-#     request = b"GET http://example.com/ HTTP/1.1\r\nHost: example.com" + b"\r\n\r\n"
-#     #send request and get response
-#     web_server.sendall(request)
-#     response_count = 0
-#     try:
-#         web_server.settimeout(10)
-#         while 1:
-#             try:
-#                 web_server.settimeout(10)
-#                 response = web_server.recv(BUFSIZE)
-                
-#                 if not response:
-#                     break
-                
-#                 response_count += 1
-#                 print('Response #: ' + str(response_count))
-#                 send_response(client_socket, response)
-            
-#             except web_server.timeout:
-#                 # if web_server.timeout:
-#                 print('Time out')
-#                 break
-#     except OSError as e:
-#         if isinstance(e, socket.timeout):
-#             print("OSError (socket.timeout): No more responses will be received.")
-#         else:
-#             print("OSError:", e)
-    
-#     finally:
-#         print('Close connection to web server')
-#         web_server.close()
-    
-#     return response
-
 def handle_request_message(client_socket, host_name, request):
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
@@ -253,17 +206,29 @@ def handle_request_message(client_socket, host_name, request):
 
         while True:
             try:
-                server_socket.settimeout(10)
+                server_socket.settimeout(TIME_OUT)
                 # response = server_socket.recv(BUFSIZE)
                 status, headers, body = receive_data(server_socket)
-                response = make_message(status, headers, body)
                 
-                if not response:
+                if not status:
                     break
                 
                 response_count += 1
                 print('Response #: ' + str(response_count))
-                client_socket.sendall(response)  # Send the response back to the client
+                
+                
+                if status[1] < '400':
+                    response = make_message(status, headers, body)
+                    send_response(client_socket, response)
+                    # client_socket.sendall(response)  # Send the response back to the client
+                elif status[1] == '404':
+                    send_not_found_response(client_socket)
+                else:
+                    send_forbidden_response(client_socket)
+                    
+                if 'Connection' in headers:
+                    if headers['Connection'] == 'close':
+                        break
                 
             except socket.timeout:
                 print('Server time out')
@@ -279,7 +244,6 @@ def handle_request_message(client_socket, host_name, request):
         print('Close connection to web server')
         server_socket.close()
 
-
 def handle_client(client_socket):
     try:
         request_count = 0
@@ -287,7 +251,7 @@ def handle_client(client_socket):
         # web_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         while 1:
             try: 
-                client_socket.settimeout(10)
+                client_socket.settimeout(TIME_OUT)
                 request_line, headers, body = receive_data(client_socket)
                 request = make_message(request_line, headers, body)
                 
@@ -300,6 +264,8 @@ def handle_client(client_socket):
                 print()
                 host_name, path = extract_hostname_and_path(url)
                 
+                if method in {'GET', 'POST', 'HEAD'} and is_whitelisted(settings[section]['whitelisting'], host_name) and is_time_allowed(settings[section]['time']):
+    
                 # if current_host_name != host_name:
                 #     if socket.isConneted(web_server):
                 #         print('Close connection to web server')
@@ -314,10 +280,16 @@ def handle_client(client_socket):
                     #     return
                     # web_server.connect((current_host_name, PORT))
                 
-                # handle_request_message(client_socket, host_name, request)
-                THREAD = threading.Thread(target=handle_request_message, args=(client_socket, host_name, request))
-                THREAD.start()
-                
+                    # handle_request_message(client_socket, host_name, request)
+                    THREAD = threading.Thread(target=handle_request_message, args=(client_socket, host_name, request))
+                    THREAD.start()
+                else:
+                    send_forbidden_response(client_socket)
+                    
+                if 'Connection' in headers:
+                    if headers['Connection'] == 'close':
+                        break
+                    
             except socket.timeout:
                 print('Client time out')
                 break
@@ -331,46 +303,6 @@ def handle_client(client_socket):
     finally:
         print('Close connection to web client')
         client_socket.close()
-        # if socket.isConnected(web_server):
-        #     print('Close connection to web server')
-        #     web_server.close()
-            
-    # print('Request:')
-    # print(request_line)
-    # print(headers)
-    
-   
-    
-
-    
-    # if method and url and is_whitelisted(settings[section]['whitelisting'], host_name) and is_time_allowed(settings[section]['time']):
-    #     print("all parameters are not None")
-    #     response = b'403'
-    #     request = make_message(request_line, headers, body)
-        
-    #     if method == 'GET' or method == 'POST' or method == 'HEAD':
-    #         response = handle_request_message(host_name, request)
-        
-    #     else:
-    #         # Unsupported method, return 403 Forbidden
-    #         send_forbidden_response(client_socket)
-        
-    #     if (len(response) == 3):
-    #         if response == b'404':
-    #             send_not_found_response(client_socket)
-    #         else:
-    #             send_forbidden_response(client_socket)
-             
-    #     else:
-    #         send_response(client_socket, response)
-            
-    # else:
-    #     # URL not whitelisted or access not allowed, return 403 Forbidden
-    #     send_forbidden_response(client_socket)
-    
-    
-    
-    # client_socket.close()
 
 def accept_incoming_connections(proxy_server):
     while 1:
@@ -380,7 +312,7 @@ def accept_incoming_connections(proxy_server):
         print('Proxy is waiting for resquest')
         THREAD = threading.Thread(target=handle_client, args=(client_socket,))
         THREAD.start()
-        # handle_request(client_socket)
+        # handle_client(client_socket)
 
 def main():
     if not os.path.exists(CACHE_DIRECTORY):
