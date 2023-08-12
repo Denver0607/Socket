@@ -64,8 +64,8 @@ def read_message_headers(request):
     
     message = http_message.split(b'\r\n\r\n',1)
     message_headers = message[0]
-    # print(message_headers.decode())
-    # print()
+    print(message_headers.decode())
+    print()
     if (len(message) > 1):
         body = message[1]
     
@@ -138,17 +138,21 @@ def send_not_found_response(client_socket):
 
 def send_image_response(client_socket, file_path):
     response_content = b""
-    with open(file_path, "rb") as file:
-        response_content = file.read()
+    try:
+        with open(file_path, "rb") as file:
+            response_content = file.read()
+    except OSError:
+        print('cannot open file ' + file_path)
     
     file_extension = os.path.splitext(file_path)
     file_extension = file_extension[1].split('.')
     content_type = "image/" + file_extension[1]
 
     response = b"HTTP/1.1 200 OK\r\n"
-    response += b"Content-Type: " + content_type.encode() + b"\r\n"
-    response += b"Content-Length: " + str(len(response_content)).encode() + b"\r\n"
-    response += b"\r\n"
+    # response += b"Content-Type: " + content_type.encode() + b"\r\n"
+    # response += b"Content-Length: " + str(len(response_content)).encode() + b"\r\n"
+    # response += image_header
+    # response += b"\r\n"
     response += response_content
 
     send_response(client_socket, response)
@@ -289,7 +293,9 @@ def handle_request_message(client_socket, host_name, request, save_path):
                     if 'Content-Type' in headers:
                         if 'image' in headers['Content-Type']:
                             print('this is an image')
-                            download_image(body, save_path)
+                            test_data = response.split(b'\r\n', 1)
+                            # image_header = test_data[1].split(b'\r\n\r\n')
+                            download_image(test_data[1], save_path)
                             
                 elif status[1] == '404':
                     send_not_found_response(client_socket)
