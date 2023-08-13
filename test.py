@@ -41,6 +41,7 @@ def receive_data(client_socket):
         
     first_line, headers, body = read_message_headers(data)
     
+    data = data.split(b'\r\n\r\n', 1)[0]
     # solve Connection: keep-alive (Content-Length)
     content_length = 0
     
@@ -55,8 +56,10 @@ def receive_data(client_socket):
     elif 'Transfer-Encoding' in headers:
         while b'\r\n\r\n' not in body:
             body += client_socket.recv(BUFSIZE)
+
+    data += b'\r\n\r\n' + body
             
-    return first_line, headers, body
+    return first_line, headers, data
 
 def read_message_headers(request):
     http_message = request
@@ -64,8 +67,8 @@ def read_message_headers(request):
     
     message = http_message.split(b'\r\n\r\n',1)
     message_headers = message[0]
-    print(message_headers.decode())
-    print()
+    # print(message_headers.decode())
+    # print()
     if (len(message) > 1):
         body = message[1]
     
@@ -188,9 +191,6 @@ def is_time_allowed(allowed_time):
 
 #done
 def make_file_path(host_name, url):
-    if not os.path.exists(CACHE_DIRECTORY):
-        os.mkdir(CACHE_DIRECTORY)
-
     basename = host_name + '_' + os.path.basename(url) 
     cache_filename = os.path.join(CACHE_DIRECTORY, basename)
     return cache_filename
@@ -241,8 +241,9 @@ def cleanup_expired_cache():
                 # The cached data has expired, remove the cached file
                 os.remove(cached_file_path)
                 print(f"Expired cached file '{cached_file}' removed.")
-        time.sleep(1)  # Sleep for 1 seconds before the next iteration
+        time.sleep(30)  # Sleep for 30 seconds before the next iteration
 
+# not use yet
 def make_message(first_line, headers, body):
     request = b''
     
@@ -278,7 +279,7 @@ def handle_request_message(client_socket, host_name, request, save_path):
         while True:
             try:
                 server_socket.settimeout(TIME_OUT)
-                status, headers, body = receive_data(server_socket)
+                status, headers, response = receive_data(server_socket)
                 
                 if not status:
                     break
@@ -287,7 +288,7 @@ def handle_request_message(client_socket, host_name, request, save_path):
                 # print('Response #: ' + str(response_count))
                 
                 if status[1] < '400':
-                    response = make_message(status, headers, body)
+                    # response = make_message(status, headers, body)
                     send_response(client_socket, response)
                     
                     if 'Content-Type' in headers:
@@ -327,8 +328,8 @@ def handle_client(client_socket):
         while 1:
             try: 
                 client_socket.settimeout(TIME_OUT)
-                request_line, headers, body = receive_data(client_socket)
-                request = make_message(request_line, headers, body)
+                request_line, headers, request = receive_data(client_socket)
+                # request = make_message(request_line, headers, body)
                 
                 request_count += 1
                 print("Request #: " + str(request_count))
@@ -392,8 +393,11 @@ def main():
     print(f"Proxy server is listening on {proxy_host}:{proxy_port}")
 
     try:
+        CLEAN_CACHED = threading.Thread(target=cleanup_expired_cache)
+        CLEAN_CACHED.start()
+        
         ACCEPT_THREAD = threading.Thread(target=accept_incoming_connections, args=(proxy_server,))
-        ACCEPT_THREAD.start()
+        ACCEPT_THREAD.start() 
         ACCEPT_THREAD.join()
             
     except KeyboardInterrupt:
