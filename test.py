@@ -149,13 +149,8 @@ def send_image_response(client_socket, file_path):
     
     file_extension = os.path.splitext(file_path)
     file_extension = file_extension[1].split('.')
-    content_type = "image/" + file_extension[1]
 
     response = b"HTTP/1.1 200 OK\r\n"
-    # response += b"Content-Type: " + content_type.encode() + b"\r\n"
-    # response += b"Content-Length: " + str(len(response_content)).encode() + b"\r\n"
-    # response += image_header
-    # response += b"\r\n"
     response += response_content
 
     send_response(client_socket, response)
@@ -164,16 +159,16 @@ def is_whitelisted(whitelisting, host_name):
     # Implement whitelisting logic from the config file
     # Return True if URL is whitelisted, otherwise False
     for allowed_web in whitelisting:
-        if host_name == allowed_web:
+        if allowed_web in host_name:
             return True
     return False
 
-# access time: all day
+# access time: 8-20
 def is_time_allowed(allowed_time):
     # Implement time-based access restrictions from the config file
     # Return True if access is allowed, otherwise False
     
-    return True
+    # return True
     
     tm = time.localtime()
     # tm = datetime.datetime.now()
@@ -190,9 +185,9 @@ def is_time_allowed(allowed_time):
     return False
 
 #done
-def make_file_path(host_name, url):
-    basename = host_name + '_' + os.path.basename(url) 
-    cache_filename = os.path.join(CACHE_DIRECTORY, basename)
+def make_file_path(url):
+    base_name = url.replace('/', '_')
+    cache_filename = os.path.join(CACHE_DIRECTORY, base_name)
     return cache_filename
 
 # done
@@ -204,7 +199,7 @@ def download_image(body, save_path):
     except Exception as e:
         print(f"An error occurred: {e}")
 
-#done
+# done
 def is_cached_data(cache_filename):
     try:
         # Check if the data is cached and still valid
@@ -228,7 +223,7 @@ def is_cached_data(cache_filename):
         print(f"Error while accessing cached data: {e}")
         return False
 
-# not done
+# done
 def cleanup_expired_cache():
     # start_time = time.time()  # Record the start time
     # while time.time() - start_time < MAX_THREAD_RUNTIME:
@@ -242,26 +237,6 @@ def cleanup_expired_cache():
                 os.remove(cached_file_path)
                 print(f"Expired cached file '{cached_file}' removed.")
         time.sleep(30)  # Sleep for 30 seconds before the next iteration
-
-# not use yet
-def make_message(first_line, headers, body):
-    request = b''
-    
-    # add request/status line
-    for item in first_line:
-        request += item.encode() + b' '
-    request = request[:-1]
-    request += b'\r\n'
-    
-    # add headers
-    for key, value in headers.items():
-        request += key.encode() + b': ' + value.encode() + b'\r\n'
-    request += b'\r\n'
-    
-    # add body
-    request += body
-    
-    return request
 
 def handle_request_message(client_socket, host_name, request, save_path):
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -288,7 +263,6 @@ def handle_request_message(client_socket, host_name, request, save_path):
                 # print('Response #: ' + str(response_count))
                 
                 if status[1] < '400':
-                    # response = make_message(status, headers, body)
                     send_response(client_socket, response)
                     
                     if 'Content-Type' in headers:
@@ -329,7 +303,6 @@ def handle_client(client_socket):
             try: 
                 client_socket.settimeout(TIME_OUT)
                 request_line, headers, request = receive_data(client_socket)
-                # request = make_message(request_line, headers, body)
                 
                 request_count += 1
                 print("Request #: " + str(request_count))
@@ -340,8 +313,10 @@ def handle_client(client_socket):
                 # print()
                 host_name, __ = extract_hostname_and_path(url)
                 
+                print(host_name)
+                
                 if method in {'GET', 'POST', 'HEAD'} and is_whitelisted(settings[section]['whitelisting'], host_name) and is_time_allowed(settings[section]['time']):
-                    file_path = make_file_path(host_name, url)
+                    file_path = make_file_path(url)
                     if is_cached_data(file_path):
                         send_image_response(client_socket, file_path)
                         
