@@ -268,9 +268,8 @@ def handle_request_message(client_socket, host_name, request, save_path):
                     if 'Content-Type' in headers:
                         if 'image' in headers['Content-Type']:
                             print('this is an image')
-                            test_data = response.split(b'\r\n', 1)
-                            # image_header = test_data[1].split(b'\r\n\r\n')
-                            download_image(test_data[1], save_path)
+                            data = response.split(b'\r\n', 1)
+                            download_image(data[1], save_path)
                             
                 elif status[1] == '404':
                     send_not_found_response(client_socket)
@@ -323,6 +322,7 @@ def handle_client(client_socket):
                     else:
                         REQUEST_THREAD = threading.Thread(target=handle_request_message, args=(client_socket, host_name, request, file_path))
                         REQUEST_THREAD.start()
+                    
                 else:
                     send_forbidden_response(client_socket)
                     
@@ -350,6 +350,7 @@ def accept_incoming_connections(proxy_server):
         print(f"Accepted connection from {client_address[0]}:{client_address[1]}")
         # clients[client_socket] = client_socket
         print('Proxy is waiting for resquest')
+       
         CLIENT_THREAD = threading.Thread(target=handle_client, args=(client_socket,))
         CLIENT_THREAD.start()
         # handle_client(client_socket)
