@@ -2,7 +2,6 @@ import socket
 import threading
 import os
 import datetime
-# from urllib.parse import urlparse
 import configparser
 import time
 
@@ -79,7 +78,6 @@ def read_message_headers(request):
 
     header_dictionary = {}
 
-    # separate by different headers
     # headers = headers.decode()
     headers = headers.split('\r\n')
 
@@ -222,8 +220,6 @@ def is_cached_data(cache_filename):
 
 # done
 def cleanup_expired_cache():
-    # start_time = time.time()  # Record the start time
-    # while time.time() - start_time < MAX_THREAD_RUNTIME:
     while 1:
         current_time = datetime.datetime.now().timestamp()
         for cached_file in os.listdir(CACHE_DIRECTORY):
@@ -344,12 +340,10 @@ def accept_incoming_connections(proxy_server):
     while 1:
         client_socket, client_address = proxy_server.accept()
         print(f"Accepted connection from {client_address[0]}:{client_address[1]}")
-        # clients[client_socket] = client_socket
         print('Proxy is waiting for resquest')
        
         CLIENT_THREAD = threading.Thread(target=handle_client, args=(client_socket,))
         CLIENT_THREAD.start()
-        # handle_client(client_socket)
 
 def main():
     if not os.path.exists(CACHE_DIRECTORY):
@@ -374,7 +368,6 @@ def main():
             
     except KeyboardInterrupt:
         print("Proxy server stopped.")
-        # proxy_server.close()
     finally:
         proxy_server.close()
 
