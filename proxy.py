@@ -68,6 +68,7 @@ def read_message_headers(request):
     message = http_message.split(b'\r\n\r\n',1)
     message_headers = message[0]
     # print(message_headers.decode())
+    # # print('----------------------------------------')
     # print()
     if (len(message) > 1):
         body = message[1]
@@ -171,12 +172,8 @@ def is_time_allowed(allowed_time):
     # return True
     
     tm = time.localtime()
-    # tm = datetime.datetime.now()
-    # current_time = time.strftime("%H:%M:%S", tm)
-    # print(current_time)
 
     cur_time = datetime.time(tm.tm_hour, tm.tm_min, tm.tm_sec)
-    # cur_time = datetime.time(7,59,0)
     start_time = datetime.time(int(allowed_time[0]))
     end_time = datetime.time(int(allowed_time[1]))
 
@@ -297,22 +294,21 @@ def handle_request_message(client_socket, host_name, request, save_path):
 
 def handle_client(client_socket):
     try:
-        request_count = 0
+        # request_count = 0
         while 1:
             try: 
                 client_socket.settimeout(TIME_OUT)
+                # request_count += 1
+                # print("Request #: " + str(request_count))
                 request_line, headers, request = receive_data(client_socket)
-                
-                request_count += 1
-                print("Request #: " + str(request_count))
                 
                 method = request_line[0]
                 url = request_line[1]
-                print(method + ' ' + url)
+                # print(method + ' ' + url)
                 # print()
                 host_name, __ = extract_hostname_and_path(url)
                 
-                print(host_name)
+                # print(host_name)
                 
                 if method in {'GET', 'POST', 'HEAD'} and is_whitelisted(settings[section]['whitelisting'], host_name) and is_time_allowed(settings[section]['time']):
                     file_path = make_file_path(url)
